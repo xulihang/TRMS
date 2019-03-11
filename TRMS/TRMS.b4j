@@ -1,0 +1,58 @@
+﻿AppType=StandardJava
+Build1=Default,b4j.example
+Group=Default Group
+Library1=jcore
+Library2=jelasticsearch
+Library3=jserver
+Library4=xml2map
+Library5=jshell
+Library6=javaobject
+Library7=jstringutils
+Library8=encryption
+Module1=Indexer
+Module2=Search
+Module3=tikal
+Module4=Utils
+Module5=xliffFilter
+Module6=XMLUtils
+Module7=FileUtils
+Module8=icu4j
+Module9=txtFilter
+NumberOfFiles=0
+NumberOfLibraries=8
+NumberOfModules=9
+Version=7
+@EndOfDesignText@
+'Non-UI application (console / server application)
+#Region Project Attributes 
+	#CommandLineArgs:
+	#MergeLibraries: True 
+#End Region
+
+#AdditionalJar: icu4j
+
+Sub Process_Globals
+	Public srvr As Server
+	Public esclient As ESClient
+	Public originalFilesPath As String
+	Public documentsPath As String
+End Sub
+
+Sub AppStart (Args() As String)
+	originalFilesPath = File.Combine(File.DirApp,"original")
+	documentsPath = File.Combine(File.DirApp,"documents")
+	srvr.Initialize("")
+	srvr.Port = 8888
+	srvr.AddBackgroundWorker("Indexer")
+	esclient.Initialize("", Array("127.0.0.1:9200"))
+	'test connection
+	Log(esclient.PerformRawRequest("GET", "_cluster/health", Null, "").ResponseAsMap)
+	srvr.AddHandler("/search", "search", False)
+	srvr.Start
+	StartMessageLoop
+End Sub
+
+'Return true to allow the default exceptions handler to handle the uncaught exception.
+Sub Application_Error (Error As Exception, StackTrace As String) As Boolean
+	Return True
+End Sub
