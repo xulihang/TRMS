@@ -14,7 +14,7 @@ End Sub
 
 Public Sub Initialize
 	queue.Initialize
-	timer1.Initialize("timer1", 10 * DateTime.TicksPerMinute ) 'check for new libraries every 10 minutes * DateTime.TicksPerMinute
+	timer1.Initialize("timer1", 20000 ) 'check for new libraries every 10 minutes * DateTime.TicksPerMinute
 	timer1.Enabled = True
 	Timer1_Tick
 	StartMessageLoop	
@@ -67,6 +67,8 @@ Sub handleQueue
 			queue.Remove(item)
 		else if result = "not supported" Then
 			queue.Remove(item)
+		else if result= "not updated" Then
+			queue.Remove(item)
 		End If
 	Next
 	isOngoing=False
@@ -88,7 +90,7 @@ Private Sub addBitext (projectPath As String,filename As String)
 	Dim categoryPath As String=File.GetFileParent(projectPath)
 	
 	Dim id As String
-	id=File.GetName(categoryPath)&"_"&File.GetName(projectPath)
+	id="original"
 	Dim item1 As item
 	item1.FilePath=sourceFilePath
 	item1.id=id&"_source"
@@ -101,7 +103,7 @@ End Sub
 
 Private Sub IndexOne(FilePath As String,id As String) As ResumableSub
 	Dim versions As Map
-	If Main.esclient.Exists("meta", "dates", id) Then
+ 	If Main.esclient.Exists("meta", "dates", id) Then
 		versions = Main.esclient.Get("meta", "dates", id)
 		Log($"Current indexed libraries (${id})"$)
 		For Each title As String In versions.Keys
@@ -156,7 +158,8 @@ Private Sub IndexOne(FilePath As String,id As String) As ResumableSub
 					result="not supported"
 				End If
 			End If
-
+        Else
+			result = "not updated"
 		End If
 		Main.esclient.Insert("meta", "dates", id, versions)
 	End If
