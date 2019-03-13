@@ -1,0 +1,145 @@
+﻿AppType=StandardJava
+Build1=Default,b4j.example
+Group=Default Group
+Library1=jcore
+Library2=jelasticsearch
+Library3=jserver
+Library4=xml2map
+Library5=jshell
+Library6=javaobject
+Library7=jstringutils
+Library8=encryption
+Library9=json
+Module1=Indexer
+Module10=QueryDSLMaker
+Module11=Count
+Module2=Search
+Module3=tikal
+Module4=Utils
+Module5=xliffFilter
+Module6=XMLUtils
+Module7=FileUtils
+Module8=icu4j
+Module9=txtFilter
+NumberOfFiles=0
+NumberOfLibraries=9
+NumberOfModules=11
+Version=7
+@EndOfDesignText@
+'Non-UI application (console / server application)
+#Region Project Attributes 
+	#CommandLineArgs:
+	#MergeLibraries: True 
+#End Region
+
+#AdditionalJar: icu4j
+
+Sub Process_Globals
+	Public srvr As Server
+	Public esclient As ESClient
+	Public originalFilesPath As String
+	Public documentsPath As String
+End Sub
+
+Sub AppStart (Args() As String)
+	originalFilesPath = File.Combine(File.DirApp,"original")
+	documentsPath = File.Combine(File.DirApp,"documents")
+	srvr.Initialize("")
+	srvr.Port = 8888
+	srvr.AddBackgroundWorker("Indexer")
+	esclient.Initialize("", Array("127.0.0.1:9200"))
+	'test connection
+	srvr.SetStaticFilesOptions(CreateMap("Cache-Control":"no-cache, no-store","Pragma":"no-cache","Expires":"0"))
+	Log(esclient.PerformRawRequest("GET", "_cluster/health", Null, "").ResponseAsMap)
+	
+	Dim result As String 
+	result=isIkEnabled("documents")
+	If result="False" Then
+		deleteIndex("documents")
+		deleteIndex("meta")
+		putIndex("documents")
+		setIk("documents","txt","text","title")
+	Else if result = "Not Found" Then
+		putIndex("documents")
+		setIk("documents","txt","text","title")
+	End If
+	
+	srvr.AddHandler("/search", "search", False)
+    srvr.AddHandler("/count", "Count", False)
+	srvr.Start
+	StartMessageLoop
+End Sub
+
+'Return true to allow the default exceptions handler to handle the uncaught exception.
+Sub Application_Error (Error As Exception, StackTrace As String) As Boolean
+	Return True
+End Sub
+
+Sub setIk(index As String,indexType As String, field As String,field2 As String) as Boolean
+	Dim jsonBody As String
+	jsonBody=$"{
+        "properties": {
+            "${field}": {
+                "type": "text",
+                "analyzer": "ik_max_word",
+                "search_analyzer": "ik_smart"
+            },
+			"${field2}": {
+                "type": "text",
+                "analyzer": "ik_max_word",
+                "search_analyzer": "ik_smart"
+            }
+        }
+
+}"$
+	Dim esres As ESResponse
+	esres=esclient.PerformRawRequest("POST",index&"/"&indexType&"/_mapping",Null,jsonBody)
+	Return esres.ResponseAsMap.GetDefault("acknowledged",False)
+End Sub
+
+Sub isIkEnabled(index As String) As String
+	Try
+		Dim esres As ESResponse
+		esres=esclient.PerformRawRequest("GET",index&"/_mapping",Null,"")
+		Dim indexMap As Map
+		indexMap=esres.ResponseAsMap.Get(index)
+		Dim mappings As Map
+		mappings=indexMap.Get("mappings")
+		Dim doc As Map
+		doc=mappings.Get("txt")
+		Dim properties As Map
+		properties=doc.Get("properties")
+		Dim textMap As Map
+		textMap=properties.Get("text")
+		Dim analyzer As String
+		analyzer=textMap.GetDefault("analyzer","")
+		If analyzer.StartsWith("ik_") Then
+			Return "True"
+		Else
+			Return "False"
+		End If
+	Catch
+		Log("exception:"&LastException.Message)
+		If LastException.Message.Contains("404") Then
+			Return "Not Found"
+		End If
+	End Try
+	Return "False"
+End Sub
+
+Sub putIndex(index As String) As Boolean
+	Dim esres As ESResponse
+	esres=esclient.PerformRawRequest("PUT",index,Null,"")
+	Return esres.ResponseAsMap.GetDefault("acknowledged",False)
+End Sub
+
+Sub deleteIndex(index As String) As Boolean
+	Try
+		Dim esres As ESResponse
+		esres=esclient.PerformRawRequest("DELETE",index,Null,"")
+		Return esres.ResponseAsMap.GetDefault("acknowledged",False)
+	Catch
+		Log(LastException)
+	End Try
+    Return True
+End Sub

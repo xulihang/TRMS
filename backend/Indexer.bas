@@ -32,7 +32,7 @@ Private Sub Timer1_Tick
 			End If
 		End If
 	Catch
-		Log(LastException)
+		Log("tick:"&LastException)
 	End Try
 
 End Sub
@@ -59,7 +59,7 @@ Sub handleQueue
 	For Each item As item In queue.Keys
 		items.Add(item)
 	Next
-	Log("queue: "&queue)
+	'Log("queue: "&queue)
 	For Each item As item In items
 		wait for (IndexOne(item.FilePath,item.id)) complete (result As String)
 		Log("result: "&result)
@@ -105,10 +105,10 @@ Private Sub IndexOne(FilePath As String,id As String) As ResumableSub
 	Dim versions As Map
  	If Main.esclient.Exists("meta", "dates", id) Then
 		versions = Main.esclient.Get("meta", "dates", id)
-		Log($"Current indexed libraries (${id})"$)
-		For Each title As String In versions.Keys
-			Log($"${title}: $DateTime{versions.Get(title)}"$)
-		Next
+		'Log($"Current indexed libraries (${id})"$)
+		'For Each title As String In versions.Keys
+			'Log($"${title}: $DateTime{versions.Get(title)}"$)
+		'Next
 	Else
 		versions.Initialize
 	End If

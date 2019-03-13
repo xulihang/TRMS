@@ -1,0 +1,238 @@
+﻿AppType=JavaFX
+Build1=Default,b4j.example
+File1=1.jpg
+File10=MultiLayout.bjl
+File11=skeleton-all.min.css
+File12=styles.css
+File2=background.jpg
+File3=FontAwesome.otf
+File4=fontawesome-webfont.eot
+File5=fontawesome-webfont.svg
+File6=fontawesome-webfont.ttf
+File7=fontawesome-webfont.woff
+File8=fontawesome-webfont.woff2
+File9=layout1.bjl
+FileGroup1=Default Group
+FileGroup10=Default Group
+FileGroup11=Default Group
+FileGroup12=Default Group
+FileGroup2=Default Group
+FileGroup3=Default Group
+FileGroup4=Default Group
+FileGroup5=Default Group
+FileGroup6=Default Group
+FileGroup7=Default Group
+FileGroup8=Default Group
+FileGroup9=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jfx
+Library3=banano
+Library4=bananoskeleton
+Library5=jshell
+Module1=HTTPRequests
+NumberOfFiles=12
+NumberOfLibraries=5
+NumberOfModules=1
+Version=7
+@EndOfDesignText@
+#Region Project Attributes 
+	#MainFormWidth: 600
+	#MainFormHeight: 600 
+	#IgnoreWarnings: 16, 10, 14, 15
+#End Region
+
+Sub Process_Globals
+	Private BANano As BANano 'ignore
+	Private Keyword As SKTextBox 'ignore
+	Private SearchButton As SKButton 'ignore
+	Private CategoryCombo As SKCombo 'ignore
+	Private SKNavigationBar1 As SKNavigationBar 'ignore
+	Private ResultList As SKList
+	Private AllRadio As SKRadio
+	Private sourceRadio As SKRadio 'ignore
+	Private targetRadio As SKRadio 'ignore
+End Sub
+
+Sub AppStart (Form1 As Form, Args() As String)
+	
+	' you can change some output params here
+	BANano.Initialize("BANano", "Search",DateTime.Now)
+	BANano.HTML_NAME = "search.html"
+	BANano.JAVASCRIPT_NAME = "app" & DateTime.Now & ".js"
+	BANano.Header.Title="Search Translation Resources"
+		
+	BANano.ExternalTestConnectionServer = "http://www.baidu.com"
+
+	BANano.Header.AddCSSFile("skeleton-all.min.css")
+	BANano.Header.AddCSSFile("styles.css")
+			
+	' start the build
+	BANano.Build(File.DirApp)
+	Log("copying...")
+	Dim sh As Shell
+	sh.Initialize("","xcopy.exe",Array("/E/Y","C:\Users\xulihang\Documents\B4J\TRMS\frontend\Objects\Search\*","C:\Users\xulihang\Documents\B4J\TRMS\backend\Objects\www"))
+	sh.RunSynchronous(5000)
+	Log("done")
+	ExitApplication
+End Sub
+
+'Return true to allow the default exceptions handler to handle the uncaught exception.
+Sub Application_Error (Error As Exception, StackTrace As String) As Boolean
+	Return True
+End Sub
+
+' HERE STARTS YOUR APP
+Sub BANano_Ready()
+	' normal layouts
+	BANano.LoadLayout("#body", "layout1")
+	
+	' Add some menu items (are added in reverse!)
+	SKNavigationBar1.AddMenu("logo", "TRMS")
+	CategoryCombo.AddOption("all","所有")
+	HTTPRequests.GetCatogories("/count?field=category")
+End Sub
+
+Public Sub loadResult(json As String)
+	Dim hits As List
+	Try
+		hits=BANano.FromJson(json)
+	Catch
+		BANano.Alert("No match")
+		Return
+		Log(LastException)
+	End Try
+	
+	' loading layouts as array (multiple times loading the same layout)
+
+	For i=0 To hits.Size - 1
+		Dim hit As Map
+		hit=hits.Get(i)
+		Log(i)
+		Log(hit)
+		If hit.ContainsKey("highlight")=False Then
+			Continue
+		End If
+		Dim hightlight As Map
+		hightlight=hit.Get("highlight")
+		
+		Dim detailSb As StringBuilder
+		detailSb.Initialize
+		
+		If hightlight.ContainsKey("text") Then
+			Dim textArray As List
+			textArray=hightlight.Get("text")
+			For Each text As String In textArray
+				detailSb.Append(text).Append("...<br/>")
+			Next
+		Else
+			detailSb.Append("Only title has matches.")
+		End If
+
+		
+		Dim id As String
+		id=hit.Get("_id")
+		Dim source As Map
+		source=hit.Get("_source")
+		
+		Dim Ret As Long
+		Dim AllViews As Map
+		
+		Ret = BANano.LoadLayoutArray("#resultrow", "MultiLayout", (i=0)) ' only clear the parent if it is the first layout that is loaded
+		
+		' ret returns a unique number you can use to get all views
+		AllViews = BANano.GetAllViewsFromLayoutArray(Me, "MultiLayout", Ret)
+		
+		Dim mLabel As SKLabel = AllViews.Get("titlelabel") ' always lowercase
+		mLabel.Text = source.Get("title")
+		
+		BANano.GetElement("#titlelabel_"&i).SetAttr("doc_id",id)
+		
+		Dim mLabel As SKLabel = AllViews.Get("contentlabel") ' always lowercase
+		mLabel.Text = detailSb.ToString&"<br/><i>("&source.Get("sourceOrTarget")&")</i><hr/>"
+	Next
+End Sub
+
+Sub SearchButton_Click (event As BANanoEvent)
+	Log("button 1 click")
+	
+	Dim text As String=BANano.GetElement("#keyword").GetValue
+	Log(text)
+	If text="" Then
+		BANano.Alert("请输入关键词。")
+		Return
+	End If
+	Dim url As String
+	url="/search?type=highlight&query="&text
+	If sourceRadio.Checked Then
+		url=url&"&source_or_target=source"
+	else if targetRadio.Checked Then
+		url=url&"&source_or_target=target"
+	End If
+	Log("category"&CategoryCombo.Value)
+	If CategoryCombo.Value<>"all" Then
+		url=url&"&category="&CategoryCombo.Value
+	End If
+	url=BANano.EncodeURI(url)
+	url=url.Replace("+","%2B")
+	Log("url"&url)
+	HTTPRequests.GetResults(url)
+	' to prevent also raising the R1_Click event
+	event.StopPropagation	
+End Sub
+
+Sub R1_Click (event As BANanoEvent)
+	Log("R1 click")
+End Sub
+
+Sub SKNavigationBar1_Click (event As BANanoEvent, menu As String)
+	Log("Clicked on menu: " & menu)
+	SKNavigationBar1.CloseDrawerMenu
+End Sub
+
+Sub TitleLabel_Click (event As BANanoEvent)
+	
+	Dim ele As BANanoElement
+	ele=BANano.GetElement("#" & event.ID)
+	Log(ele.GetAttr("doc_id"))
+	Log("clicked")
+End Sub
+
+Sub targetRadio_Click (event As BANanoEvent)
+	
+End Sub
+
+Sub sourceRadio_Click (event As BANanoEvent)
+	
+End Sub
+
+Sub AllRadio_Click (event As BANanoEvent)
+	
+End Sub
+
+Sub loadCategory(json As String)
+	Log(json)
+	Dim response As Map
+	Try
+		response=BANano.FromJson(json)
+	Catch
+		Log(LastException)
+		Return
+	End Try
+
+	Dim aggs As Map
+	aggs=response.Get("aggregations")
+	Dim categories As Map
+	categories=aggs.Get("categories")
+	Dim buckets As List
+	buckets=categories.Get("buckets")
+	For Each bucket As Map In buckets
+		Dim category As String
+		category=bucket.Get("key")
+		CategoryCombo.AddOption(category,category)
+	Next
+End Sub
+
+Sub CategoryCombo_Change (event As BANanoEvent)
+	
+End Sub
