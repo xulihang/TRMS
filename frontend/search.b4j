@@ -2,8 +2,9 @@
 Build1=Default,b4j.example
 File1=1.jpg
 File10=MultiLayout.bjl
-File11=skeleton-all.min.css
-File12=styles.css
+File11=paginator.bjl
+File12=skeleton-all.min.css
+File13=styles.css
 File2=background.jpg
 File3=FontAwesome.otf
 File4=fontawesome-webfont.eot
@@ -16,6 +17,7 @@ FileGroup1=Default Group
 FileGroup10=Default Group
 FileGroup11=Default Group
 FileGroup12=Default Group
+FileGroup13=Default Group
 FileGroup2=Default Group
 FileGroup3=Default Group
 FileGroup4=Default Group
@@ -31,7 +33,7 @@ Library3=banano
 Library4=bananoskeleton
 Library5=jshell
 Module1=HTTPRequests
-NumberOfFiles=12
+NumberOfFiles=13
 NumberOfLibraries=5
 NumberOfModules=1
 Version=7
@@ -52,6 +54,8 @@ Sub Process_Globals
 	Private AllRadio As SKRadio
 	Private sourceRadio As SKRadio 'ignore
 	Private targetRadio As SKRadio 'ignore
+	Private currentPageNum As Int=1
+	Private querySize As Int=10
 End Sub
 
 Sub AppStart (Form1 As Form, Args() As String)
@@ -99,6 +103,7 @@ Public Sub loadResult(json As String)
 		hits=BANano.FromJson(json)
 	Catch
 		BANano.Alert("No match")
+		changePageNum(currentPageNum-1)
 		Return
 		Log(LastException)
 	End Try
@@ -151,11 +156,30 @@ Public Sub loadResult(json As String)
 		Dim mLabel As SKLabel = AllViews.Get("contentlabel") ' always lowercase
 		mLabel.Text = detailSb.ToString&"<br/><i>("&source.Get("sourceOrTarget")&")</i><hr/>"
 	Next
+	If hits.Size=querySize Then
+		loadPaginator
+	End If
+End Sub
+
+Sub loadPaginator
+	BANano.LoadLayout("#paginator", "paginator")
+	changePageNum(currentPageNum)
+End Sub
+
+Sub changePageNum(num As Int)
+	currentPageNum=Max(1,num)
+	BANano.GetElement("#pagenum").SetValue(num)
 End Sub
 
 Sub SearchButton_Click (event As BANanoEvent)
 	Log("button 1 click")
-	
+	currentPageNum=1
+	DoSearch(0)
+	' to prevent also raising the R1_Click event
+	event.StopPropagation	
+End Sub
+
+Sub DoSearch(from As Int)
 	Dim text As String=BANano.GetElement("#keyword").GetValue
 	Log(text)
 	If text="" Then
@@ -163,7 +187,7 @@ Sub SearchButton_Click (event As BANanoEvent)
 		Return
 	End If
 	Dim url As String
-	url="/search?type=highlight&query="&text
+	url="/search?type=highlight&from="&from&"&query="&text
 	If sourceRadio.Checked Then
 		url=url&"&source_or_target=source"
 	else if targetRadio.Checked Then
@@ -177,8 +201,6 @@ Sub SearchButton_Click (event As BANanoEvent)
 	url=url.Replace("+","%2B")
 	Log("url"&url)
 	HTTPRequests.GetResults(url)
-	' to prevent also raising the R1_Click event
-	event.StopPropagation	
 End Sub
 
 Sub R1_Click (event As BANanoEvent)
@@ -235,4 +257,36 @@ End Sub
 
 Sub CategoryCombo_Change (event As BANanoEvent)
 	
+End Sub
+
+Sub PreviousPage_Click (event As BANanoEvent)
+	Log(currentPageNum)
+	jumpToPage(currentPageNum-1)
+End Sub
+
+Sub NextPage_Click (event As BANanoEvent)
+	Log(currentPageNum)
+	jumpToPage(currentPageNum+1)
+End Sub
+
+Sub jumpToPage(num As Int)
+	If num<=0 Then 
+		Return
+	End If
+	Dim startNum As Int=num-1
+	changePageNum(num)
+	DoSearch(startNum*querySize)
+End Sub
+
+Sub PageNum_Keyup (event As BANanoEvent)
+	If event.Key="Enter" Then
+		jumpToPage(BANano.GetElement("#pagenum").GetValue)
+	End If
+End Sub
+
+Sub Keyword_KeyUp (event As BANanoEvent)
+	If event.Key="Enter" Then
+		currentPageNum=1
+		DoSearch(0)
+	End If
 End Sub

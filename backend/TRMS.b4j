@@ -75,7 +75,7 @@ Sub Application_Error (Error As Exception, StackTrace As String) As Boolean
 	Return True
 End Sub
 
-Sub setIk(index As String,indexType As String, field As String,field2 As String) as Boolean
+Sub setIk(index As String,indexType As String, field As String,field2 As String) As Boolean
 	Dim jsonBody As String
 	jsonBody=$"{
         "properties": {

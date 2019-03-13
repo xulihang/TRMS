@@ -3,6 +3,11 @@ a.title {
     text-decoration:none;
 }
 
+.txtbtn:hover {
+    text-decoration:underline;
+    color:gray;
+}
+
 em {
     color:#c00;
     font-style:normal;
