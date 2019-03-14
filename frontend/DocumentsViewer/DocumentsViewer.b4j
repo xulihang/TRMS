@@ -1,0 +1,180 @@
+﻿AppType=JavaFX
+Build1=Default,b4j.example
+File1=background.jpg
+File10=skeleton-all.min.css
+File11=sourceLayout.bjl
+File12=styles.css
+File13=targetLayout.bjl
+File2=FontAwesome.otf
+File3=fontawesome-webfont.eot
+File4=fontawesome-webfont.svg
+File5=fontawesome-webfont.ttf
+File6=fontawesome-webfont.woff
+File7=fontawesome-webfont.woff2
+File8=layout1.bjl
+File9=MultiLayout.bjl
+FileGroup1=Default Group
+FileGroup10=Default Group
+FileGroup11=Default Group
+FileGroup12=Default Group
+FileGroup13=Default Group
+FileGroup2=Default Group
+FileGroup3=Default Group
+FileGroup4=Default Group
+FileGroup5=Default Group
+FileGroup6=Default Group
+FileGroup7=Default Group
+FileGroup8=Default Group
+FileGroup9=Default Group
+Group=Default Group
+Library1=jcore
+Library2=jfx
+Library3=banano
+Library4=bananoskeleton
+Library5=jshell
+Module1=HTTPRequests
+NumberOfFiles=13
+NumberOfLibraries=5
+NumberOfModules=1
+Version=7
+@EndOfDesignText@
+#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
+#Region Project Attributes 
+	#MainFormWidth: 600
+	#MainFormHeight: 600 
+	#IgnoreWarnings: 16, 10, 14, 15
+#End Region
+
+Sub Process_Globals
+	Private BANano As BANano 'ignore
+	Private SKNavigationBar1 As SKNavigationBar 'ignore
+	Private ContentTable As SKTable 'ignore
+End Sub
+
+Sub AppStart (Form1 As Form, Args() As String)
+	
+	' you can change some output params here
+	BANano.Initialize("BANano", "DocumentsViewer",DateTime.Now)
+	BANano.HTML_NAME = "DocumentsViewer.html"
+	BANano.JAVASCRIPT_NAME = "DocumentsViewer" & DateTime.Now & ".js"
+	BANano.SERVICEWORKER_NAME="DocumentsViewerSW.js"
+	BANano.MANIFEST_NAME="DocumentsViewerManifest.json"
+	BANano.Header.Title="DocumentsViewer"
+	
+	BANano.ExternalTestConnectionServer = "http://www.baidu.com"
+
+	BANano.Header.AddCSSFile("skeleton-all.min.css")
+	BANano.Header.AddCSSFile("styles.css")
+			
+	' start the build
+	BANano.Build(File.DirApp)
+	Log("copying...")
+	Dim sh As Shell
+	sh.Initialize("","xcopy.exe",Array("/E/Y","C:\Users\xulihang\Documents\B4J\TRMS\frontend\DocumentsViewer\Objects\DocumentsViewer\*","C:\Users\xulihang\Documents\B4J\TRMS\backend\Objects\www"))
+	sh.RunSynchronous(5000)
+	Log("done")
+	ExitApplication
+End Sub
+
+'Return true to allow the default exceptions handler to handle the uncaught exception.
+Sub Application_Error (Error As Exception, StackTrace As String) As Boolean
+	Return True
+End Sub
+
+' HERE STARTS YOUR APP
+Sub BANano_Ready()
+	' normal layouts
+	BANano.LoadLayout("#body", "layout1")
+	
+	' Add some menu items (are added in reverse!)
+	SKNavigationBar1.AddMenu("logo", "TRMS")
+	load
+End Sub
+
+Sub load
+	Dim params As Map=BANano.GetURLParams(BANano.GetCurrentUrl)
+	Log(params)
+	Try
+		Dim category,project,filename As String
+		category=params.Get("category")
+		project=params.Get("project")
+		filename=params.Get("filename")
+		Dim url As String
+		url="/getdoc?category="&category&"&project="&project&"&filename="&filename
+		url=BANano.EncodeURI(url)
+		HTTPRequests.GetResults(url)
+	Catch
+		Log(LastException)
+		BANano.Alert("no doc id is specified.")
+		BANano.Eval("window.location.href='/search.html';")
+	End Try
+End Sub
+
+Sub loadResults(jsonString As String)
+	Dim result As List
+	result=BANano.FromJson(jsonString)
+	Log(result)
+	Dim sourceMap As Map
+	Dim targetMap As Map
+	sourceMap=result.Get(0)
+	targetMap=result.Get(1)
+	Dim sourceTarget As Map
+	Dim sourceSource As Map
+	sourceSource=sourceMap.Get("_source")
+	sourceTarget=targetMap.Get("_source")
+	Dim sourceText As String=sourceSource.Get("text")
+	Dim targetText As String=sourceTarget.Get("text")
+	loadItemsToTable(textIntoParagraphs(sourceText),textIntoParagraphs(targetText))
+End Sub
+
+Sub textIntoParagraphs(text As String) As List
+	Dim segmentsList As List
+	segmentsList.Initialize
+    Dim textJO As BANanoObject
+	textJO.Initialize(text)
+	Dim paragraphs As List=textJO.RunMethod("split",Array("\n"))
+	For Each source As String In paragraphs
+		If source.Trim="" Then
+			Continue
+		End If
+		segmentsList.Add(source)
+	Next
+	Return segmentsList
+End Sub
+
+Sub loadItemsToTable(sourceSegments As List,targetSegments As List)
+	For i=0 To Max(sourceSegments.Size-1,targetSegments.size-1)
+		Dim segment As List
+		segment.Initialize
+		If i<=sourceSegments.Size-1 Then
+			segment.Add(sourceSegments.Get(i))
+		Else
+			segment.Add("")
+		End If
+		If i<=targetSegments.Size-1 Then
+			segment.Add(targetSegments.Get(i))
+		Else
+			segment.Add("")
+		End If
+		ContentTable.AddRow(segment)
+	Next
+End Sub
+
+
+Sub TextToHTML(text As String) As String
+	Dim regexBANano As BANanoRegEx
+	
+	Dim sb As StringBuilder
+	sb.Initialize
+	sb.Append("<p>")
+	sb.Append(regexBANano.ReplacePattern(text,$"/[\r\n]/g"$,"</p><p>"))
+	sb.Append("</p>")
+	Return sb.ToString
+End Sub
+
+Sub SKNavigationBar1_Click (event As BANanoEvent, menu As String)
+	Log("Clicked on menu: " & menu)
+	SKNavigationBar1.CloseDrawerMenu
+
+End Sub
+

@@ -13,6 +13,7 @@ Library9=json
 Module1=Indexer
 Module10=QueryDSLMaker
 Module11=Count
+Module12=GetDoc
 Module2=Search
 Module3=tikal
 Module4=Utils
@@ -23,7 +24,7 @@ Module8=icu4j
 Module9=txtFilter
 NumberOfFiles=0
 NumberOfLibraries=9
-NumberOfModules=11
+NumberOfModules=12
 Version=7
 @EndOfDesignText@
 'Non-UI application (console / server application)
@@ -66,6 +67,7 @@ Sub AppStart (Args() As String)
 	
 	srvr.AddHandler("/search", "search", False)
     srvr.AddHandler("/count", "Count", False)
+	srvr.AddHandler("/getdoc", "GetDoc", False)
 	srvr.Start
 	StartMessageLoop
 End Sub

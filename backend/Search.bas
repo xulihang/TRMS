@@ -50,11 +50,11 @@ Sub Handle(req As ServletRequest, resp As ServletResponse)
 	End If
 	
 	If category<> "" Then
-		mustConditions.Add(QueryDSLMaker.matchDict("category",category,fuzzy))
+		mustConditions.Add(QueryDSLMaker.matchDict("category",category,""))
 	End If
 	
 	If sourceOrTarget<>"" Then
-		mustConditions.Add(QueryDSLMaker.matchDict("sourceOrTarget",sourceOrTarget,fuzzy))
+		mustConditions.Add(QueryDSLMaker.matchDict("sourceOrTarget",sourceOrTarget,""))
 	End If
 	
 
@@ -89,7 +89,7 @@ Sub Handle(req As ServletRequest, resp As ServletResponse)
 			CreateMap("query": Query, _
 		     "from":from, _
 			 "highlight": Highlighter, _
-	         "_source": Array("title","sourceOrTarget")))
+	         "_source": Array("category","project","filename","title","sourceOrTarget")))
 	Else
 		esres = Main.esclient.Search("documents", "txt", _
 			CreateMap("query": Query,"from":from))

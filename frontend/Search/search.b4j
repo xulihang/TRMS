@@ -1,23 +1,21 @@
 ﻿AppType=JavaFX
 Build1=Default,b4j.example
-File1=1.jpg
-File10=MultiLayout.bjl
-File11=paginator.bjl
-File12=skeleton-all.min.css
-File13=styles.css
-File2=background.jpg
-File3=FontAwesome.otf
-File4=fontawesome-webfont.eot
-File5=fontawesome-webfont.svg
-File6=fontawesome-webfont.ttf
-File7=fontawesome-webfont.woff
-File8=fontawesome-webfont.woff2
-File9=layout1.bjl
+File1=background.jpg
+File10=paginator.bjl
+File11=skeleton-all.min.css
+File12=styles.css
+File2=FontAwesome.otf
+File3=fontawesome-webfont.eot
+File4=fontawesome-webfont.svg
+File5=fontawesome-webfont.ttf
+File6=fontawesome-webfont.woff
+File7=fontawesome-webfont.woff2
+File8=layout1.bjl
+File9=MultiLayout.bjl
 FileGroup1=Default Group
 FileGroup10=Default Group
 FileGroup11=Default Group
 FileGroup12=Default Group
-FileGroup13=Default Group
 FileGroup2=Default Group
 FileGroup3=Default Group
 FileGroup4=Default Group
@@ -33,11 +31,12 @@ Library3=banano
 Library4=bananoskeleton
 Library5=jshell
 Module1=HTTPRequests
-NumberOfFiles=13
+NumberOfFiles=12
 NumberOfLibraries=5
 NumberOfModules=1
 Version=7
 @EndOfDesignText@
+#CustomBuildAction: folders ready, %WINDIR%\System32\Robocopy.exe,"..\..\Shared Files" "..\Files"
 #Region Project Attributes 
 	#MainFormWidth: 600
 	#MainFormHeight: 600 
@@ -63,9 +62,11 @@ Sub AppStart (Form1 As Form, Args() As String)
 	' you can change some output params here
 	BANano.Initialize("BANano", "Search",DateTime.Now)
 	BANano.HTML_NAME = "search.html"
-	BANano.JAVASCRIPT_NAME = "app" & DateTime.Now & ".js"
+	BANano.JAVASCRIPT_NAME = "searchpage" & DateTime.Now & ".js"
+	BANano.SERVICEWORKER_NAME="searchSW.js"
+	BANano.MANIFEST_NAME="searchManifest.json"
 	BANano.Header.Title="Search Translation Resources"
-		
+	
 	BANano.ExternalTestConnectionServer = "http://www.baidu.com"
 
 	BANano.Header.AddCSSFile("skeleton-all.min.css")
@@ -75,7 +76,7 @@ Sub AppStart (Form1 As Form, Args() As String)
 	BANano.Build(File.DirApp)
 	Log("copying...")
 	Dim sh As Shell
-	sh.Initialize("","xcopy.exe",Array("/E/Y","C:\Users\xulihang\Documents\B4J\TRMS\frontend\Objects\Search\*","C:\Users\xulihang\Documents\B4J\TRMS\backend\Objects\www"))
+	sh.Initialize("","xcopy.exe",Array("/E/Y","C:\Users\xulihang\Documents\B4J\TRMS\frontend\Search\Objects\Search\*","C:\Users\xulihang\Documents\B4J\TRMS\backend\Objects\www"))
 	sh.RunSynchronous(5000)
 	Log("done")
 	ExitApplication
@@ -148,10 +149,26 @@ Public Sub loadResult(json As String)
 		' ret returns a unique number you can use to get all views
 		AllViews = BANano.GetAllViewsFromLayoutArray(Me, "MultiLayout", Ret)
 		
+		Dim sb As StringBuilder
+		sb.Initialize
+		sb.Append("/DocumentsViewer.html?category=")
+		sb.Append(source.Get("category"))
+		sb.Append("&project=")
+		sb.Append(source.Get("project"))
+		sb.Append("&filename=")
+		sb.Append(source.Get("filename"))
+		Dim url As String
+		url=sb.ToString
+		url=BANano.EncodeURI(url)
+		Dim title As String=source.Get("title")
 		Dim mLabel As SKLabel = AllViews.Get("titlelabel") ' always lowercase
-		mLabel.Text = source.Get("title")
+		mLabel.Text = $"<a class="title" target="_blank" href=${url}>${title}<a/>"$
 		
-		BANano.GetElement("#titlelabel_"&i).SetAttr("doc_id",id)
+		Dim titleLabel As BANanoElement
+		titleLabel=BANano.GetElement("#titlelabel_"&i)
+		titleLabel.SetAttr("category",source.Get("category"))
+		titleLabel.SetAttr("project",source.Get("project"))
+		titleLabel.SetAttr("filename",source.Get("filename"))
 		
 		Dim mLabel As SKLabel = AllViews.Get("contentlabel") ' always lowercase
 		mLabel.Text = detailSb.ToString&"<br/><i>("&source.Get("sourceOrTarget")&")</i><hr/>"
@@ -163,7 +180,17 @@ End Sub
 
 Sub loadPaginator
 	BANano.LoadLayout("#paginator", "paginator")
+	addHandler
 	changePageNum(currentPageNum)
+End Sub
+
+Sub addHandler
+	Dim previousTxt As BANanoElement
+	previousTxt=BANano.GetElement("#previouspage")
+	Dim nextTxt As BANanoElement
+	nextTxt=BANano.GetElement("#nextpage")
+	previousTxt.HandleEvents("click", Me, "previouspage_click")
+	nextTxt.HandleEvents("click", Me, "nextpage_click")
 End Sub
 
 Sub changePageNum(num As Int)
@@ -187,7 +214,7 @@ Sub DoSearch(from As Int)
 		Return
 	End If
 	Dim url As String
-	url="/search?type=highlight&from="&from&"&query="&text
+	url="/search?fuzzy=enabled&type=highlight&from="&from&"&query="&text
 	If sourceRadio.Checked Then
 		url=url&"&source_or_target=source"
 	else if targetRadio.Checked Then
@@ -210,14 +237,6 @@ End Sub
 Sub SKNavigationBar1_Click (event As BANanoEvent, menu As String)
 	Log("Clicked on menu: " & menu)
 	SKNavigationBar1.CloseDrawerMenu
-End Sub
-
-Sub TitleLabel_Click (event As BANanoEvent)
-	
-	Dim ele As BANanoElement
-	ele=BANano.GetElement("#" & event.ID)
-	Log(ele.GetAttr("doc_id"))
-	Log("clicked")
 End Sub
 
 Sub targetRadio_Click (event As BANanoEvent)
