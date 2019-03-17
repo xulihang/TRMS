@@ -103,6 +103,71 @@ End Sub
 
 Private Sub IndexOne(FilePath As String,id As String) As ResumableSub
 	Dim versions As Map
+	If Main.esclient.Exists("meta", "dates", id) Then
+		versions = Main.esclient.Get("meta", "dates", id)
+		'Log($"Current indexed libraries (${id})"$)
+		'For Each title As String In versions.Keys
+		'Log($"${title}: $DateTime{versions.Get(title)}"$)
+		'Next
+	Else
+		versions.Initialize
+	End If
+	
+	Dim title As String=FilePath
+	Try
+		title = FilePath.SubString2(0, FilePath.LastIndexOf(".")) 'remove extension
+	Catch
+		Log(LastException)
+	End Try
+	
+	Dim logMap As Map
+	logMap.Initialize
+	Dim failedTimes As Int
+	Dim logPath As String=File.Combine(File.DirApp,"log.map")
+	If File.Exists(logPath,"") Then
+		logMap=File.ReadMap(logPath,"")
+		failedTimes=logMap.GetDefault(title,0)
+	End If
+	
+	Dim result As String
+	If failedTimes<3 Then
+		Dim currentDate As Long = versions.GetDefault(title, 0)
+		Dim NewDate As Long = File.LastModified(FilePath, "")
+		If currentDate < NewDate Then
+			
+			Dim text As String
+			If FilePath.EndsWith(".txt") Then
+
+				text=txtFilter.read(FilePath)
+				IndexTxt(title, FilePath,text)
+				versions.Put(title, NewDate)
+				result="success"
+			Else
+				text=tika.getText(FilePath)
+			    If text<>"failed" Then
+					If FilePath.EndsWith(".pdf") Then
+						text=Utils.removeLines(text)
+					End If
+					IndexTxt(title, FilePath&".txt",text)
+					versions.Put(title, NewDate)
+					result="success"
+				Else
+					failedTimes=failedTimes+1
+					logMap.Put(title,failedTimes)
+					File.WriteMap(logPath,"",logMap)
+					result="not supported"
+				End If
+			End If
+		Else
+			result = "not updated"
+		End If
+		Main.esclient.Insert("meta", "dates", id, versions)
+	End If
+	Return result
+End Sub
+
+Private Sub IndexOneWithTikal(FilePath As String,id As String) As ResumableSub
+	Dim versions As Map
  	If Main.esclient.Exists("meta", "dates", id) Then
 		versions = Main.esclient.Get("meta", "dates", id)
 		'Log($"Current indexed libraries (${id})"$)

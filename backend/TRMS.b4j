@@ -14,6 +14,7 @@ Module1=Indexer
 Module10=QueryDSLMaker
 Module11=Count
 Module12=GetDoc
+Module13=tika
 Module2=Search
 Module3=tikal
 Module4=Utils
@@ -24,7 +25,7 @@ Module8=icu4j
 Module9=txtFilter
 NumberOfFiles=0
 NumberOfLibraries=9
-NumberOfModules=12
+NumberOfModules=13
 Version=7
 @EndOfDesignText@
 'Non-UI application (console / server application)
@@ -33,13 +34,14 @@ Version=7
 	#MergeLibraries: True 
 #End Region
 
+#AdditionalJar: tika-app-1.20
 #AdditionalJar: icu4j
 
 Sub Process_Globals
 	Public srvr As Server
 	Public esclient As ESClient
 	Public originalFilesPath As String
-	Public documentsPath As String
+	Public documentsPath As String ' output documents path for tikal
 End Sub
 
 Sub AppStart (Args() As String)
